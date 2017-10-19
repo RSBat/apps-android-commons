@@ -6,8 +6,6 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.location.LocationManager;
-import android.net.Uri;
-import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
@@ -15,7 +13,9 @@ import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentTransaction;
+import android.support.v4.app.LoaderManager;
 import android.support.v4.content.ContextCompat;
+import android.support.v4.content.Loader;
 import android.support.v7.app.AlertDialog;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -40,7 +40,8 @@ import fr.free.nrw.commons.utils.UriSerializer;
 import timber.log.Timber;
 
 
-public class NearbyActivity extends NavigationBaseActivity {
+public class NearbyActivity extends NavigationBaseActivity
+        implements LoaderManager.LoaderCallbacks<Bundle> {
 
     @BindView(R.id.progressBar)
     ProgressBar progressBar;
@@ -50,7 +51,6 @@ public class NearbyActivity extends NavigationBaseActivity {
     private LocationServiceManager locationManager;
     private LatLng curLatLang;
     private Bundle bundle;
-    private NearbyAsyncTask nearbyAsyncTask;
     private SharedPreferences sharedPreferences;
     private NearbyActivityMode viewMode;
 
@@ -108,8 +108,8 @@ public class NearbyActivity extends NavigationBaseActivity {
         locationManager = new LocationServiceManager(this);
         locationManager.registerLocationManager();
         curLatLang = locationManager.getLatestLocation();
-        nearbyAsyncTask = new NearbyAsyncTask(this);
-        nearbyAsyncTask.execute();
+
+        getSupportLoaderManager().initLoader(0, null, this);
     }
 
     private void checkLocationPermission() {
@@ -169,9 +169,6 @@ public class NearbyActivity extends NavigationBaseActivity {
                     startLookingForNearby();
                 } else {
                     //If permission not granted, go to page that says Nearby Places cannot be displayed
-                    if (nearbyAsyncTask != null) {
-                        nearbyAsyncTask.cancel(true);
-                    }
                     if (progressBar != null) {
                         progressBar.setVisibility(View.GONE);
                     }
@@ -231,16 +228,7 @@ public class NearbyActivity extends NavigationBaseActivity {
     }
 
     private void toggleView() {
-        if (nearbyAsyncTask != null) {
-            if (nearbyAsyncTask.getStatus() == AsyncTask.Status.FINISHED) {
-                if (viewMode.isMap()) {
-                    setMapFragment();
-                } else {
-                    setListFragment();
-                }
-            }
-            sharedPreferences.edit().putBoolean(MAP_LAST_USED_PREFERENCE, viewMode.isMap()).apply();
-        }
+        sharedPreferences.edit().putBoolean(MAP_LAST_USED_PREFERENCE, viewMode.isMap()).apply();
     }
 
     @Override
@@ -249,17 +237,14 @@ public class NearbyActivity extends NavigationBaseActivity {
         checkGps();
     }
 
-    @Override
-    protected void onPause() {
-        super.onPause();
-        if (nearbyAsyncTask != null) {
-            nearbyAsyncTask.cancel(true);
-        }
-    }
-
     private void refreshView() {
-        nearbyAsyncTask = new NearbyAsyncTask(this);
-        nearbyAsyncTask.execute();
+        if (locationManager == null) {
+            locationManager = new LocationServiceManager(this);
+            locationManager.registerLocationManager();
+        }
+        curLatLang = locationManager.getLatestLocation();
+
+        getSupportLoaderManager().restartLoader(0, null, this);
     }
 
     @Override
@@ -267,63 +252,6 @@ public class NearbyActivity extends NavigationBaseActivity {
         super.onDestroy();
         if (locationManager != null) {
             locationManager.unregisterLocationManager();
-        }
-    }
-
-    private class NearbyAsyncTask extends AsyncTask<Void, Integer, List<Place>> {
-
-        private final Context mContext;
-
-        private NearbyAsyncTask(Context context) {
-            mContext = context;
-        }
-
-        @Override
-        protected void onProgressUpdate(Integer... values) {
-            super.onProgressUpdate(values);
-        }
-
-        @Override
-        protected List<Place> doInBackground(Void... params) {
-            return NearbyController
-                    .loadAttractionsFromLocation(curLatLang, CommonsApplication.getInstance()
-                    );
-        }
-
-        @Override
-        protected void onPostExecute(List<Place> placeList) {
-            super.onPostExecute(placeList);
-
-            if (isCancelled()) {
-                return;
-            }
-
-            Gson gson = new GsonBuilder()
-                    .registerTypeAdapter(Uri.class, new UriSerializer())
-                    .create();
-            String gsonPlaceList = gson.toJson(placeList);
-            String gsonCurLatLng = gson.toJson(curLatLang);
-
-            if (placeList.size() == 0) {
-                int duration = Toast.LENGTH_SHORT;
-                Toast toast = Toast.makeText(mContext, R.string.no_nearby, duration);
-                toast.show();
-            }
-
-            bundle.clear();
-            bundle.putString("PlaceList", gsonPlaceList);
-            bundle.putString("CurLatLng", gsonCurLatLng);
-
-            // Begin the transaction
-            if (viewMode.isMap()) {
-                setMapFragment();
-            } else {
-                setListFragment();
-            }
-
-            if (progressBar != null) {
-                progressBar.setVisibility(View.GONE);
-            }
         }
     }
 
@@ -352,5 +280,30 @@ public class NearbyActivity extends NavigationBaseActivity {
     public static void startYourself(Context context) {
         Intent settingsIntent = new Intent(context, NearbyActivity.class);
         context.startActivity(settingsIntent);
+    }
+
+    @Override
+    public Loader<Bundle> onCreateLoader(int i, Bundle bundle) {
+        return new NearbyPlacesLoader(getApplicationContext(), curLatLang);
+    }
+
+    @Override
+    public void onLoadFinished(Loader<Bundle> loader, Bundle mBundle) {
+        bundle = mBundle;
+
+        if (progressBar != null) {
+            progressBar.setVisibility(View.GONE);
+        }
+
+        if (viewMode.isMap()) {
+            setMapFragment();
+        } else {
+            setListFragment();
+        }
+    }
+
+    @Override
+    public void onLoaderReset(Loader<Bundle> loader) {
+
     }
 }
