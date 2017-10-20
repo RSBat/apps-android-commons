@@ -2,11 +2,8 @@ package fr.free.nrw.commons.nearby;
 
 import android.content.Context;
 import android.net.Uri;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v4.content.AsyncTaskLoader;
-import android.view.View;
-import android.widget.Toast;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -14,7 +11,6 @@ import com.google.gson.GsonBuilder;
 import java.util.List;
 
 import fr.free.nrw.commons.CommonsApplication;
-import fr.free.nrw.commons.R;
 import fr.free.nrw.commons.location.LatLng;
 import fr.free.nrw.commons.utils.UriSerializer;
 
@@ -60,9 +56,5 @@ public class NearbyPlacesLoader extends AsyncTaskLoader<Bundle> {
     @Override
     protected void onStartLoading() {
         forceLoad();
-    }
-
-    public void setLatLng(LatLng latLng) {
-        curLatLang = latLng;
     }
 }

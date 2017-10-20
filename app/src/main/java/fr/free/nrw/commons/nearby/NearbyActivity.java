@@ -13,30 +13,18 @@ import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentTransaction;
-import android.support.v4.app.LoaderManager;
 import android.support.v4.content.ContextCompat;
-import android.support.v4.content.Loader;
 import android.support.v7.app.AlertDialog;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ProgressBar;
-import android.widget.Toast;
-
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-
-import java.util.List;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
-import fr.free.nrw.commons.CommonsApplication;
 import fr.free.nrw.commons.R;
-import fr.free.nrw.commons.location.LatLng;
-import fr.free.nrw.commons.location.LocationServiceManager;
 import fr.free.nrw.commons.theme.NavigationBaseActivity;
-import fr.free.nrw.commons.utils.UriSerializer;
 import timber.log.Timber;
 
 
@@ -47,7 +35,6 @@ public class NearbyActivity extends NavigationBaseActivity {
     private static final int LOCATION_REQUEST = 1;
     private static final String MAP_LAST_USED_PREFERENCE = "mapLastUsed";
 
-    private Bundle bundle;
     private SharedPreferences sharedPreferences;
     private NearbyActivityMode viewMode;
 
@@ -92,7 +79,8 @@ public class NearbyActivity extends NavigationBaseActivity {
         // Handle item selection
         switch (item.getItemId()) {
             case R.id.action_refresh:
-                refreshView();
+                //TODO move refresh handling to fragments
+                showFragment();
                 return true;
             case R.id.action_toggle_view:
                 viewMode = viewMode.toggle();
@@ -104,17 +92,11 @@ public class NearbyActivity extends NavigationBaseActivity {
         }
     }
 
-    // TODO replace with something more meaningful
-    // starts fragment
-    private void startLookingForNearby() {
-        refreshView();
-    }
-
     private void checkLocationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (ContextCompat.checkSelfPermission(this,
                     Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                startLookingForNearby();
+                showFragment();
             } else {
                 if (ContextCompat.checkSelfPermission(this,
                         Manifest.permission.ACCESS_FINE_LOCATION)
@@ -155,7 +137,7 @@ public class NearbyActivity extends NavigationBaseActivity {
                 }
             }
         } else {
-            startLookingForNearby();
+            showFragment();
         }
     }
 
@@ -164,7 +146,7 @@ public class NearbyActivity extends NavigationBaseActivity {
         switch (requestCode) {
             case LOCATION_REQUEST: {
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    startLookingForNearby();
+                    showFragment();
                 } else {
                     //If permission not granted, go to page that says Nearby Places cannot be displayed
                     if (progressBar != null) {
@@ -221,7 +203,7 @@ public class NearbyActivity extends NavigationBaseActivity {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == 1) {
             Timber.d("User is back from Settings page");
-            refreshView();
+            showFragment();
         }
     }
 
@@ -241,18 +223,17 @@ public class NearbyActivity extends NavigationBaseActivity {
         checkGps();
     }
 
-    //TODO move refresh handling to fragments
-    private void refreshView() {
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+    }
+
+    private void showFragment() {
         if (viewMode.isMap()) {
             setMapFragment();
         } else {
             setListFragment();
         }
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
     }
 
     /**
@@ -261,7 +242,6 @@ public class NearbyActivity extends NavigationBaseActivity {
     private void setMapFragment() {
         FragmentTransaction fragmentTransaction = getSupportFragmentManager().beginTransaction();
         Fragment fragment = new NearbyMapFragment();
-        fragment.setArguments(bundle);
         fragmentTransaction.replace(R.id.container, fragment);
         fragmentTransaction.commitAllowingStateLoss();
     }
@@ -272,7 +252,6 @@ public class NearbyActivity extends NavigationBaseActivity {
     private void setListFragment() {
         FragmentTransaction fragmentTransaction = getSupportFragmentManager().beginTransaction();
         Fragment fragment = new NearbyListFragment();
-        fragment.setArguments(bundle);
         fragmentTransaction.replace(R.id.container, fragment);
         fragmentTransaction.commitAllowingStateLoss();
     }
