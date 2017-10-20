@@ -9,6 +9,8 @@ import android.support.v4.content.Loader;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 
@@ -62,6 +64,18 @@ public class NearbyListFragment extends Fragment implements LoaderManager.Loader
         // Check that this is the first time view is created,
         // to avoid double list when screen orientation changed
         getLoaderManager().initLoader(0, null, this);
+        setHasOptionsMenu(true);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.action_refresh:
+                getLoaderManager().restartLoader(0, null, this);
+                return true;
+            default:
+                return false;
+        }
     }
 
     @Override

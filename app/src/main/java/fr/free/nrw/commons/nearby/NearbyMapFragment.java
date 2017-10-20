@@ -7,7 +7,9 @@ import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.v4.app.LoaderManager;
 import android.support.v4.content.Loader;
+import android.support.v4.media.MediaBrowserCompat;
 import android.view.LayoutInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 
@@ -64,6 +66,17 @@ public class NearbyMapFragment extends android.support.v4.app.Fragment
         setHasOptionsMenu(false);
 
         return mapView;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.action_refresh:
+                getLoaderManager().restartLoader(0, null, this);
+                return true;
+            default:
+                return false;
+        }
     }
 
     private void setupMapView(Bundle savedInstanceState) {

@@ -79,9 +79,7 @@ public class NearbyActivity extends NavigationBaseActivity {
         // Handle item selection
         switch (item.getItemId()) {
             case R.id.action_refresh:
-                //TODO move refresh handling to fragments
-                showFragment();
-                return true;
+                return false;
             case R.id.action_toggle_view:
                 viewMode = viewMode.toggle();
                 item.setIcon(viewMode.getIcon());
@@ -210,11 +208,7 @@ public class NearbyActivity extends NavigationBaseActivity {
     private void toggleView() {
         sharedPreferences.edit().putBoolean(MAP_LAST_USED_PREFERENCE, viewMode.isMap()).apply();
 
-        if (viewMode.isMap()) {
-            setMapFragment();
-        } else {
-            setListFragment();
-        }
+        showFragment();
     }
 
     @Override
