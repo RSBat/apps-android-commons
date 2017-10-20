@@ -40,16 +40,13 @@ import fr.free.nrw.commons.utils.UriSerializer;
 import timber.log.Timber;
 
 
-public class NearbyActivity extends NavigationBaseActivity
-        implements LoaderManager.LoaderCallbacks<Bundle> {
+public class NearbyActivity extends NavigationBaseActivity {
 
     @BindView(R.id.progressBar)
     ProgressBar progressBar;
     private static final int LOCATION_REQUEST = 1;
     private static final String MAP_LAST_USED_PREFERENCE = "mapLastUsed";
 
-    private LocationServiceManager locationManager;
-    private LatLng curLatLang;
     private Bundle bundle;
     private SharedPreferences sharedPreferences;
     private NearbyActivityMode viewMode;
@@ -60,10 +57,13 @@ public class NearbyActivity extends NavigationBaseActivity
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
         setContentView(R.layout.activity_nearby);
         ButterKnife.bind(this);
-        checkLocationPermission();
-        bundle = new Bundle();
-        initDrawer();
+
+        // TODO move progressbar to ListFragment
+        progressBar.setVisibility(View.GONE);
+
         initViewState();
+        initDrawer();
+        checkLocationPermission();
     }
 
     private void initViewState() {
@@ -104,12 +104,10 @@ public class NearbyActivity extends NavigationBaseActivity
         }
     }
 
+    // TODO replace with something more meaningful
+    // starts fragment
     private void startLookingForNearby() {
-        locationManager = new LocationServiceManager(this);
-        locationManager.registerLocationManager();
-        curLatLang = locationManager.getLatestLocation();
-
-        getSupportLoaderManager().initLoader(0, null, this);
+        refreshView();
     }
 
     private void checkLocationPermission() {
@@ -229,6 +227,12 @@ public class NearbyActivity extends NavigationBaseActivity
 
     private void toggleView() {
         sharedPreferences.edit().putBoolean(MAP_LAST_USED_PREFERENCE, viewMode.isMap()).apply();
+
+        if (viewMode.isMap()) {
+            setMapFragment();
+        } else {
+            setListFragment();
+        }
     }
 
     @Override
@@ -237,22 +241,18 @@ public class NearbyActivity extends NavigationBaseActivity
         checkGps();
     }
 
+    //TODO move refresh handling to fragments
     private void refreshView() {
-        if (locationManager == null) {
-            locationManager = new LocationServiceManager(this);
-            locationManager.registerLocationManager();
+        if (viewMode.isMap()) {
+            setMapFragment();
+        } else {
+            setListFragment();
         }
-        curLatLang = locationManager.getLatestLocation();
-
-        getSupportLoaderManager().restartLoader(0, null, this);
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (locationManager != null) {
-            locationManager.unregisterLocationManager();
-        }
     }
 
     /**
@@ -280,30 +280,5 @@ public class NearbyActivity extends NavigationBaseActivity
     public static void startYourself(Context context) {
         Intent settingsIntent = new Intent(context, NearbyActivity.class);
         context.startActivity(settingsIntent);
-    }
-
-    @Override
-    public Loader<Bundle> onCreateLoader(int i, Bundle bundle) {
-        return new NearbyPlacesLoader(getApplicationContext(), curLatLang);
-    }
-
-    @Override
-    public void onLoadFinished(Loader<Bundle> loader, Bundle mBundle) {
-        bundle = mBundle;
-
-        if (progressBar != null) {
-            progressBar.setVisibility(View.GONE);
-        }
-
-        if (viewMode.isMap()) {
-            setMapFragment();
-        } else {
-            setListFragment();
-        }
-    }
-
-    @Override
-    public void onLoaderReset(Loader<Bundle> loader) {
-
     }
 }

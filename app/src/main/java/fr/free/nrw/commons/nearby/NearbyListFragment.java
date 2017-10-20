@@ -1,8 +1,11 @@
 package fr.free.nrw.commons.nearby;
 
+import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
+import android.support.v4.app.LoaderManager;
+import android.support.v4.content.Loader;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
@@ -19,10 +22,11 @@ import java.util.List;
 
 import fr.free.nrw.commons.R;
 import fr.free.nrw.commons.location.LatLng;
+import fr.free.nrw.commons.location.LocationServiceManager;
 import fr.free.nrw.commons.utils.UriDeserializer;
 import timber.log.Timber;
 
-public class NearbyListFragment extends Fragment {
+public class NearbyListFragment extends Fragment implements LoaderManager.LoaderCallbacks<Bundle> {
     private static final Type LIST_TYPE = new TypeToken<List<Place>>() {
     }.getType();
     private static final Type CUR_LAT_LNG_TYPE = new TypeToken<LatLng>() {
@@ -33,6 +37,7 @@ public class NearbyListFragment extends Fragment {
 
     private NearbyAdapterFactory adapterFactory;
     private RecyclerView recyclerView;
+    private LocationServiceManager locationManager;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -56,9 +61,33 @@ public class NearbyListFragment extends Fragment {
     public void onViewCreated(View view, Bundle savedInstanceState) {
         // Check that this is the first time view is created,
         // to avoid double list when screen orientation changed
+        getLoaderManager().initLoader(0, null, this);
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        if (locationManager != null) {
+            locationManager.unregisterLocationManager();
+        }
+    }
+
+    @Override
+    public Loader<Bundle> onCreateLoader(int i, Bundle bundle) {
+        if (locationManager == null) {
+            locationManager = new LocationServiceManager(getContext());
+            locationManager.registerLocationManager();
+        }
+        LatLng curLatLang = locationManager.getLatestLocation();
+
+
+        return new NearbyPlacesLoader(getContext(), curLatLang);
+    }
+
+    @Override
+    public void onLoadFinished(Loader<Bundle> loader, Bundle bundle) {
         List<Place> placeList = Collections.emptyList();
 
-        Bundle bundle = this.getArguments();
         if (bundle != null) {
             String gsonPlaceList = bundle.getString("PlaceList");
             placeList = gson.fromJson(gsonPlaceList, LIST_TYPE);
@@ -70,5 +99,10 @@ public class NearbyListFragment extends Fragment {
         }
 
         recyclerView.setAdapter(adapterFactory.create(placeList));
+    }
+
+    @Override
+    public void onLoaderReset(Loader<Bundle> loader) {
+
     }
 }

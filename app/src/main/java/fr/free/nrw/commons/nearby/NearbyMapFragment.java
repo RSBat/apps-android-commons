@@ -1,9 +1,12 @@
 package fr.free.nrw.commons.nearby;
 
 import android.graphics.Color;
+import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.support.v4.app.LoaderManager;
+import android.support.v4.content.Loader;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -15,6 +18,7 @@ import com.mapbox.mapboxsdk.Mapbox;
 import com.mapbox.mapboxsdk.annotations.MarkerOptions;
 import com.mapbox.mapboxsdk.annotations.PolygonOptions;
 import com.mapbox.mapboxsdk.camera.CameraPosition;
+import com.mapbox.mapboxsdk.camera.CameraUpdateFactory;
 import com.mapbox.mapboxsdk.constants.Style;
 import com.mapbox.mapboxsdk.geometry.LatLng;
 import com.mapbox.mapboxsdk.maps.MapView;
@@ -24,15 +28,20 @@ import com.mapbox.services.android.telemetry.MapboxTelemetry;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import fr.free.nrw.commons.R;
+import fr.free.nrw.commons.location.LocationServiceManager;
 import fr.free.nrw.commons.utils.UriDeserializer;
 
-public class NearbyMapFragment extends android.support.v4.app.Fragment {
+public class NearbyMapFragment extends android.support.v4.app.Fragment
+        implements LoaderManager.LoaderCallbacks<Bundle> {
     private MapView mapView;
     private List<NearbyBaseMarker> baseMarkerOptions;
     private fr.free.nrw.commons.location.LatLng curLatLng;
+    private LocationServiceManager locationManager;
+    private MapboxMap mapboxMap;
 
     public NearbyMapFragment() {
     }
@@ -40,22 +49,7 @@ public class NearbyMapFragment extends android.support.v4.app.Fragment {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        Bundle bundle = this.getArguments();
-        Gson gson = new GsonBuilder()
-                .registerTypeAdapter(Uri.class, new UriDeserializer())
-                .create();
-        if (bundle != null) {
-            String gsonPlaceList = bundle.getString("PlaceList");
-            String gsonLatLng = bundle.getString("CurLatLng");
-            Type listType = new TypeToken<List<Place>>() {}.getType();
-            List<Place> placeList = gson.fromJson(gsonPlaceList, listType);
-            Type curLatLngType = new TypeToken<fr.free.nrw.commons.location.LatLng>() {}.getType();
-            curLatLng = gson.fromJson(gsonLatLng, curLatLngType);
-            baseMarkerOptions = NearbyController
-                    .loadAttractionsFromLocationToBaseMarkerOptions(curLatLng,
-                            placeList,
-                            getActivity());
-        }
+
         Mapbox.getInstance(getActivity(),
                 getString(R.string.mapbox_commons_app_token));
         MapboxTelemetry.getInstance().setTelemetryEnabled(false);
@@ -65,9 +59,7 @@ public class NearbyMapFragment extends android.support.v4.app.Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
 
-        if (curLatLng != null) {
-            setupMapView(savedInstanceState);
-        }
+        setupMapView(savedInstanceState);
 
         setHasOptionsMenu(false);
 
@@ -76,17 +68,13 @@ public class NearbyMapFragment extends android.support.v4.app.Fragment {
 
     private void setupMapView(Bundle savedInstanceState) {
         MapboxMapOptions options = new MapboxMapOptions()
-                .styleUrl(Style.OUTDOORS)
-                .camera(new CameraPosition.Builder()
-                        .target(new LatLng(curLatLng.getLatitude(), curLatLng.getLongitude()))
-                        .zoom(11)
-                        .build());
+                .styleUrl(Style.OUTDOORS);
 
         // create map
         mapView = new MapView(getActivity(), options);
         mapView.onCreate(savedInstanceState);
-        mapView.getMapAsync(mapboxMap -> {
-            mapboxMap.addMarkers(baseMarkerOptions);
+        mapView.getMapAsync(mMapboxMap -> {
+            mapboxMap = mMapboxMap;
 
             mapboxMap.setOnMarkerClickListener(marker -> {
                 if (marker instanceof NearbyMarker) {
@@ -97,7 +85,7 @@ public class NearbyMapFragment extends android.support.v4.app.Fragment {
                 return false;
             });
 
-            addCurrentLocationMarker(mapboxMap);
+            getLoaderManager().initLoader(0, null, this);
         });
         if (PreferenceManager.getDefaultSharedPreferences(getActivity()).getBoolean("theme",false)) {
             mapView.setStyleUrl(getResources().getString(R.string.map_theme_dark));
@@ -190,6 +178,60 @@ public class NearbyMapFragment extends android.support.v4.app.Fragment {
         if (mapView != null) {
             mapView.onDestroy();
         }
+        if (locationManager != null) {
+            locationManager.unregisterLocationManager();
+        }
         super.onDestroyView();
+    }
+
+    @Override
+    public Loader<Bundle> onCreateLoader(int i, Bundle bundle) {
+        if (locationManager == null) {
+            locationManager = new LocationServiceManager(getContext());
+            locationManager.registerLocationManager();
+        }
+        fr.free.nrw.commons.location.LatLng curLatLang = locationManager.getLatestLocation();
+
+
+        return new NearbyPlacesLoader(getContext(), curLatLang);
+    }
+
+    @Override
+    public void onLoadFinished(Loader<Bundle> loader, Bundle bundle) {
+        Gson gson = new GsonBuilder()
+                .registerTypeAdapter(Uri.class, new UriDeserializer())
+                .create();
+
+        if (bundle != null) {
+            String gsonPlaceList = bundle.getString("PlaceList");
+            String gsonLatLng = bundle.getString("CurLatLng");
+            Type listType = new TypeToken<List<Place>>() {
+            }.getType();
+            List<Place> placeList = gson.fromJson(gsonPlaceList, listType);
+            Type curLatLngType = new TypeToken<fr.free.nrw.commons.location.LatLng>() {
+            }.getType();
+            curLatLng = gson.fromJson(gsonLatLng, curLatLngType);
+            baseMarkerOptions = NearbyController
+                    .loadAttractionsFromLocationToBaseMarkerOptions(curLatLng,
+                            placeList,
+                            getActivity());
+        }
+
+        if (mapboxMap != null) {
+            mapboxMap.clear();
+
+            mapboxMap.addMarkers(baseMarkerOptions);
+            mapboxMap.animateCamera(CameraUpdateFactory.newCameraPosition(new CameraPosition.Builder()
+                    .target(new LatLng(curLatLng.getLatitude(), curLatLng.getLongitude()))
+                    .zoom(11)
+                    .build()));
+
+            addCurrentLocationMarker(mapboxMap);
+        }
+    }
+
+    @Override
+    public void onLoaderReset(Loader<Bundle> loader) {
+
     }
 }
