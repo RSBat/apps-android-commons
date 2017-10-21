@@ -36,6 +36,7 @@ public class NearbyListFragment extends Fragment implements LoaderManager.Loader
     private static final Gson gson = new GsonBuilder()
             .registerTypeAdapter(Uri.class, new UriDeserializer())
             .create();
+    private static final int PLACES_LOADER_ID = 0;
 
     private NearbyAdapterFactory adapterFactory;
     private RecyclerView recyclerView;
@@ -61,9 +62,7 @@ public class NearbyListFragment extends Fragment implements LoaderManager.Loader
 
     @Override
     public void onViewCreated(View view, Bundle savedInstanceState) {
-        // Check that this is the first time view is created,
-        // to avoid double list when screen orientation changed
-        getLoaderManager().initLoader(0, null, this);
+        getLoaderManager().initLoader(PLACES_LOADER_ID, null, this);
         setHasOptionsMenu(true);
     }
 
@@ -71,7 +70,8 @@ public class NearbyListFragment extends Fragment implements LoaderManager.Loader
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case R.id.action_refresh:
-                getLoaderManager().restartLoader(0, null, this);
+                // force loader to reload data
+                getLoaderManager().restartLoader(PLACES_LOADER_ID, null, this);
                 return true;
             default:
                 return false;
@@ -87,13 +87,12 @@ public class NearbyListFragment extends Fragment implements LoaderManager.Loader
     }
 
     @Override
-    public Loader<Bundle> onCreateLoader(int i, Bundle bundle) {
+    public Loader<Bundle> onCreateLoader(int id, Bundle bundle) {
         if (locationManager == null) {
             locationManager = new LocationServiceManager(getContext());
             locationManager.registerLocationManager();
         }
         LatLng curLatLang = locationManager.getLatestLocation();
-
 
         return new NearbyPlacesLoader(getContext(), curLatLang);
     }

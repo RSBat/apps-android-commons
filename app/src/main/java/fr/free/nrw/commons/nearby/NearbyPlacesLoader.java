@@ -14,9 +14,14 @@ import fr.free.nrw.commons.CommonsApplication;
 import fr.free.nrw.commons.location.LatLng;
 import fr.free.nrw.commons.utils.UriSerializer;
 
+/**
+ * Loads places near location stored in curLatLang
+ * Location is fixed at creation time and does not change later
+ * Always reloads data when asked
+ * Returns a Bundle with places and stored user location
+ */
 public class NearbyPlacesLoader extends AsyncTaskLoader<Bundle> {
     private LatLng curLatLang;
-    private Bundle data;
 
     public NearbyPlacesLoader(Context context) {
         super(context);
