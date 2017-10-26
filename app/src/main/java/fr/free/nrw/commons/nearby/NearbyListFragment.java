@@ -1,18 +1,19 @@
 package fr.free.nrw.commons.nearby;
 
-import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.LoaderManager;
 import android.support.v4.content.Loader;
+import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
-import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ProgressBar;
+import android.widget.Toast;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -28,6 +29,8 @@ import fr.free.nrw.commons.location.LocationServiceManager;
 import fr.free.nrw.commons.utils.UriDeserializer;
 import timber.log.Timber;
 
+import static android.view.View.GONE;
+
 public class NearbyListFragment extends Fragment implements LoaderManager.LoaderCallbacks<Bundle> {
     private static final Type LIST_TYPE = new TypeToken<List<Place>>() {
     }.getType();
@@ -40,6 +43,8 @@ public class NearbyListFragment extends Fragment implements LoaderManager.Loader
 
     private NearbyAdapterFactory adapterFactory;
     private RecyclerView recyclerView;
+    private SwipeRefreshLayout swipeRefreshLayout;
+    private ProgressBar progressBar;
     private LocationServiceManager locationManager;
 
     @Override
@@ -54,9 +59,18 @@ public class NearbyListFragment extends Fragment implements LoaderManager.Loader
                              Bundle savedInstanceState) {
         Timber.d("NearbyListFragment created");
         View view = inflater.inflate(R.layout.fragment_nearby, container, false);
-        recyclerView = (RecyclerView) view.findViewById(R.id.listView);
+        swipeRefreshLayout = view.findViewById(R.id.swipeRefresh);
+        swipeRefreshLayout.setOnRefreshListener(() -> {
+            // show animation and start loading data
+            swipeRefreshLayout.setRefreshing(true);
+            getLoaderManager().restartLoader(PLACES_LOADER_ID, null, this);
+        });
+
+        recyclerView = view.findViewById(R.id.listView);
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         adapterFactory = new NearbyAdapterFactory(place -> NearbyInfoDialog.showYourself(getActivity(), place));
+
+        progressBar = view.findViewById(R.id.progressBar);
         return view;
     }
 
@@ -70,7 +84,8 @@ public class NearbyListFragment extends Fragment implements LoaderManager.Loader
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case R.id.action_refresh:
-                // force loader to reload data
+                // show animation and force loader to reload data
+                swipeRefreshLayout.setRefreshing(true);
                 getLoaderManager().restartLoader(PLACES_LOADER_ID, null, this);
                 return true;
             default:
@@ -112,6 +127,15 @@ public class NearbyListFragment extends Fragment implements LoaderManager.Loader
         }
 
         recyclerView.setAdapter(adapterFactory.create(placeList));
+        swipeRefreshLayout.setRefreshing(false);
+
+        progressBar.setVisibility(GONE);
+
+        if (placeList.size() == 0) {
+            int duration = Toast.LENGTH_SHORT;
+            Toast toast = Toast.makeText(getContext(), R.string.no_nearby, duration);
+            toast.show();
+        }
     }
 
     @Override

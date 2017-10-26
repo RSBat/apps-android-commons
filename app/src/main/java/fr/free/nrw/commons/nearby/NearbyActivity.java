@@ -18,10 +18,7 @@ import android.support.v7.app.AlertDialog;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
-import android.view.View;
-import android.widget.ProgressBar;
 
-import butterknife.BindView;
 import butterknife.ButterKnife;
 import fr.free.nrw.commons.R;
 import fr.free.nrw.commons.theme.NavigationBaseActivity;
@@ -30,8 +27,6 @@ import timber.log.Timber;
 
 public class NearbyActivity extends NavigationBaseActivity {
 
-    @BindView(R.id.progressBar)
-    ProgressBar progressBar;
     private static final int LOCATION_REQUEST = 1;
     private static final String MAP_LAST_USED_PREFERENCE = "mapLastUsed";
 
@@ -44,9 +39,6 @@ public class NearbyActivity extends NavigationBaseActivity {
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
         setContentView(R.layout.activity_nearby);
         ButterKnife.bind(this);
-
-        // TODO move progressbar to ListFragment
-        progressBar.setVisibility(View.GONE);
 
         initViewState();
         initDrawer();
@@ -147,10 +139,6 @@ public class NearbyActivity extends NavigationBaseActivity {
                     showFragment();
                 } else {
                     //If permission not granted, go to page that says Nearby Places cannot be displayed
-                    if (progressBar != null) {
-                        progressBar.setVisibility(View.GONE);
-                    }
-
                     showLocationPermissionDeniedErrorDialog();
                 }
             }

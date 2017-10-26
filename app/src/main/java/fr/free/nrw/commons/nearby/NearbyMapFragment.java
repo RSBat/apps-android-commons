@@ -1,17 +1,16 @@
 package fr.free.nrw.commons.nearby;
 
 import android.graphics.Color;
-import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.v4.app.LoaderManager;
 import android.support.v4.content.Loader;
-import android.support.v4.media.MediaBrowserCompat;
 import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Toast;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -69,7 +68,7 @@ public class NearbyMapFragment extends android.support.v4.app.Fragment
 
         setupMapView(savedInstanceState);
 
-        setHasOptionsMenu(false);
+        setHasOptionsMenu(true);
 
         return mapView;
     }
@@ -244,6 +243,12 @@ public class NearbyMapFragment extends android.support.v4.app.Fragment
                     .loadAttractionsFromLocationToBaseMarkerOptions(curLatLng,
                             placeList,
                             getActivity());
+        }
+
+        if (baseMarkerOptions.size() == 0) {
+            int duration = Toast.LENGTH_SHORT;
+            Toast toast = Toast.makeText(getContext(), R.string.no_nearby, duration);
+            toast.show();
         }
 
         placeMarkers();
